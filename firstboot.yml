@@ -14,7 +14,6 @@
       - "{{ groups.ubuntu }}"
       - "{{ groups.centos }}"
 
-
   - name: add  key #Врубить нужно алиас ssha!!! каждый раз как входишь в консоль
     shell: ssh-copy-id -i /home/test/.ssh/id_ed25519.pub ubuntu@"{{ item }}"
     with_items: "{{ groups.ubuntu }}"
