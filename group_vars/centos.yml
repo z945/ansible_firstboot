@@ -1,0 +1,3 @@
+groups_on_hosts: adm,root,wheel
+remote_user: test
+base_user: test

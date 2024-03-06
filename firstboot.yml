@@ -1,0 +1,78 @@
+---
+ 
+- hosts: localhost  #С become не будет работать алиас ssha и не отработает ssh-copy-id
+  connection: local #С sshpass и --ask-pass получается не красиво надо шифровать пароль и долго
+  tasks:
+
+  - name: Ensure servers are present in known_hosts file
+    known_hosts:
+      name: "{{ item }}"
+      state: present
+      key: "{{ lookup('pipe', 'ssh-keyscan {{ item }}') }}"
+      hash_host: true
+    with_items: 
+      - "{{ groups.ubuntu }}"
+      - "{{ groups.centos }}"
+
+
+  - name: add  key #Врубить нужно алиас ssha!!! каждый раз как входишь в консоль
+    shell: ssh-copy-id -i /home/test/.ssh/id_ed25519.pub ubuntu@"{{ item }}"
+    with_items: "{{ groups.ubuntu }}"
+
+  - name: add  key #Врубить нужно алиас ssha!!! каждый раз как входишь в консоль
+    shell: ssh-copy-id -i /home/test/.ssh/id_ed25519.pub test@"{{ item }}"
+    with_items: "{{ groups.centos }}"
+
+- hosts: ubuntu:centos
+  become: true
+  remote_user: "{{ remote_user }}"
+  pre_tasks:
+
+  - name: install updates (CentOS)
+    tags: always
+    yum:
+      update_only: yes
+      update_cache: yes
+    when: ansible_distribution == "CentOS"
+
+  - name: install updates (Ubuntu)
+    tags: always
+    apt:
+      upgrade: dist
+      update_cache: yes
+    when: ansible_distribution == "Ubuntu"
+
+- hosts: ubuntu:centos
+  become: true
+  remote_user: "{{ remote_user }}"
+  tasks: 
+
+  - name: create simone user
+    user:
+      name: simone
+      groups: root
+
+  - name: add ssh key for simone
+    authorized_key:
+      user: simone
+      key: "{{ lookup('file', '~/.ssh/ansible.pub') }}"
+     
+  - name: add sudoers file for simone
+    copy:
+      src: sudoer_simone
+      dest: /etc/sudoers.d/simone
+      owner: root
+      group: root
+      mode: 0440
+
+  - name: create base_user user
+    user:
+      name: "{{ base_user }}"
+      shell: /bin/bash
+      groups: "{{ groups_on_hosts }}"
+      append: yes #Если yes добавятся группы, если no добавятся и удалятся не обьявленные группы
+
+  - name: add ssh key for base_user
+    authorized_key:
+      user: "{{ base_user }}"
+      key: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
